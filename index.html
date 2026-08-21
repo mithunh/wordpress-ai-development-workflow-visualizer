@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress AI Development Workflow Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script>
+        // Check initial theme preference before render to prevent flickering
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+        }
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        wp: {
+                            blue: '#0073aa',
+                            dark: '#005177'
+                        },
+                        figma: {
+                            purple: '#a259ff',
+                            orange: '#ff7262',
+                            green: '#0acf83'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        code, pre { font-family: 'JetBrains+Mono', monospace; }
+
+        /* Custom scrollbars for light and dark modes */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        .dark ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .glow-effect {
+            box-shadow: 0 4px 20px -2px rgba(99, 102, 241, 0.15);
+        }
+        .loop-card {
+            background: linear-gradient(135deg, rgba(236, 253, 245, 0.9) 0%, rgba(240, 253, 250, 0.95) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .dark .loop-card {
+            background: linear-gradient(135deg, rgba(6, 78, 59, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 shadow-sm transition-colors duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-xl text-white shadow-md">
+                    <i class="fa-solid fa-diagram-project text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 dark:from-white dark:via-slate-200 dark:to-indigo-300 bg-clip-text text-transparent">
+                        WordPress AI Development Workflow
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Interactive SOP Visualizer & Execution Pipeline</p>
+                </div>
+            </div>
+
+            <!-- Global View & Theme Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 flex text-xs flex-wrap gap-1">
+                    <button id="btn-view-flowchart" onclick="switchView('flowchart')" class="px-3 py-1.5 rounded-md font-medium transition-all text-white bg-indigo-600 shadow-sm">
+                        <i class="fa-solid fa-route mr-1.5"></i> Flowchart
+                    </button>
+                    <button id="btn-view-kanban" onclick="switchView('kanban')" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-columns-3 mr-1.5"></i> Stages Grid
+                    </button>
+                    <button id="btn-view-prompts" onclick="switchView('prompts')" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-code mr-1.5"></i> AI Prompts
+                    </button>
+                    <button id="btn-view-sop" onclick="switchView('sop')" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-file-lines mr-1.5"></i> SOP Doc
+                    </button>
+                </div>
+
+                <!-- Dark / Light Mode Toggle Button -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition text-xs flex items-center space-x-1.5 shadow-xs" title="Toggle Theme (Light/Dark)">
+                    <i id="theme-toggle-icon" class="fa-solid fa-moon"></i>
+                    <span id="theme-toggle-text" class="hidden sm:inline font-medium">Dark</span>
+                </button>
+
+                <button onclick="resetProgress()" class="text-xs px-2.5 py-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg transition shadow-xs" title="Reset saved task checklist progress">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Workflow Summary Bar -->
+        <section class="bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-200">
+            <div class="flex items-center space-x-4 w-full md:w-auto">
+                <div class="relative flex items-center justify-center">
+                    <svg class="w-16 h-16 transform -rotate-90">
+                        <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="5" class="text-slate-100 dark:text-slate-800" fill="transparent" />
+                        <circle id="progress-circle" cx="32" cy="32" r="26" stroke="currentColor" stroke-width="5" class="text-indigo-600 dark:text-indigo-500 transition-all duration-500" fill="transparent" stroke-dasharray="163.3" stroke-dashoffset="163.3" />
+                    </svg>
+                    <span id="progress-percent" class="absolute text-xs font-bold text-slate-800 dark:text-slate-100">0%</span>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Pipeline Status</span>
+                        <span id="progress-text-badge" class="px-2 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">Not Started</span>
+                    </div>
+                    <p class="text-sm text-slate-800 dark:text-slate-100 font-medium mt-0.5"><span id="tasks-completed-count">0</span> of <span id="tasks-total-count">28</span> Workflow Tasks Completed</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click on tasks in the diagram or stages view to track progress in real-time.</p>
+                </div>
+            </div>
+
+            <!-- Filter Tags -->
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+                <span class="text-xs text-slate-500 dark:text-slate-400 mr-1"><i class="fa-solid fa-filter mr-1"></i>Filter Tool:</span>
+                <button onclick="filterByTool('all')" class="tool-filter-btn px-2.5 py-1 text-xs rounded-lg border border-indigo-500/40 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-600/50 font-medium shadow-xs" data-tool="all">All</button>
+                <button onclick="filterByTool('wp')" class="tool-filter-btn px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" data-tool="wp"><i class="fa-brands fa-wordpress text-sky-600 dark:text-sky-400 mr-1"></i>WordPress</button>
+                <button onclick="filterByTool('mcp')" class="tool-filter-btn px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" data-tool="mcp"><i class="fa-solid fa-plug text-emerald-600 dark:text-emerald-400 mr-1"></i>MCP/Claude</button>
+                <button onclick="filterByTool('figma')" class="tool-filter-btn px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" data-tool="figma"><i class="fa-brands fa-figma text-purple-600 dark:text-purple-400 mr-1"></i>Figma</button>
+                <button onclick="filterByTool('git')" class="tool-filter-btn px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" data-tool="git"><i class="fa-brands fa-git-alt text-amber-600 dark:text-amber-400 mr-1"></i>Git</button>
+            </div>
+        </section>
+
+        <!-- VIEW 1: FLOWCHART DIAGRAM VIEW -->
+        <section id="view-flowchart" class="space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Stage-by-Stage Visual Pipeline Map</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Interactive process diagram from local setup and tooling to design tokenization & production launch.</p>
+                </div>
+                <div class="flex items-center space-x-3 text-xs text-slate-600 dark:text-slate-400">
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block mr-1.5"></span> Setup</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mr-1.5"></span> Integration</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block mr-1.5"></span> Design Analysis</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mr-1.5"></span> QA & Launch</span>
+                </div>
+            </div>
+
+            <!-- Diagram Canvas Grid -->
+            <div class="relative bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm overflow-x-auto min-w-[900px]">
+                
+                <!-- Pipeline Container -->
+                <div class="space-y-8 relative">
+
+                    <!-- Phase 1: Preparation & Setup -->
+                    <div class="space-y-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Phase I</span>
+                            <span>Environment, AI Tooling, Guardrails & Design Analysis (Stages 1-4)</span>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-4">
+
+                            <!-- Stage 1 Card (Local Env Setup) -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(1)" data-stage="1">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-semibold">STAGE 01</span>
+                                    <span class="text-xs text-sky-600 dark:text-sky-400"><i class="fa-brands fa-wordpress"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">1. Local Environment Setup</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Spin up Local WP (PHP 8.2+), starter theme/blocks, & init Git repository.</p>
+                                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-400 dark:text-slate-500">Git Strategy:</span>
+                                    <span class="text-slate-700 dark:text-slate-300 font-mono">feature/*</span>
+                                </div>
+                            </div>
+
+                            <!-- Stage 2 Card (Tooling & MCP Setup) -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(2)" data-stage="2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-semibold">STAGE 02</span>
+                                    <span class="text-xs text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-plug"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">2. Tooling & MCP Integration</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Connect Claude Code, Novamira WP MCP, Agent Skills & Chrome/Figma connectors.</p>
+                                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-400 dark:text-slate-500">Core Tools:</span>
+                                    <span class="text-emerald-700 dark:text-emerald-400 font-medium">MCP + Claude</span>
+                                </div>
+                            </div>
+
+                            <!-- Stage 3 Card (AI Guardrails) -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(3)" data-stage="3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-semibold">STAGE 03</span>
+                                    <span class="text-xs text-indigo-600 dark:text-indigo-400"><i class="fa-solid fa-shield-halved"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">3. AI Guardrails (CLAUDE.md)</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Establish coding standards, sanitization rules, & non-destructive prompt policies.</p>
+                                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-400 dark:text-slate-500">Rules Artifact:</span>
+                                    <span class="text-slate-700 dark:text-slate-300 font-mono">CLAUDE.md</span>
+                                </div>
+                            </div>
+
+                            <!-- Stage 4 Card (Figma Design Analysis) -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(4)" data-stage="4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-semibold">STAGE 04</span>
+                                    <span class="text-xs text-purple-600 dark:text-purple-400"><i class="fa-brands fa-figma"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">4. Figma Design Analysis</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Audit seat permissions, extract dynamic design tokens, & define responsive breakpoints.</p>
+                                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-400 dark:text-slate-500">Seat Branch:</span>
+                                    <span class="text-indigo-700 dark:text-indigo-300 font-medium bg-indigo-50 dark:bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">Free vs Dev</span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Flow Connector Line -->
+                    <div class="flex items-center justify-center my-2">
+                        <div class="h-8 w-0.5 bg-gradient-to-b from-slate-300 to-indigo-400 dark:from-slate-700 dark:to-indigo-500"></div>
+                    </div>
+
+                    <!-- Phase 2: Architecture & Content Planning -->
+                    <div class="space-y-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Phase II</span>
+                            <span>Architecture & Custom Field Mapping (Stage 5)</span>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-5 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition cursor-pointer group" onclick="openStageModal(5)" data-stage="5">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold">STAGE 05</span>
+                                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">5. Architecture & Development Plan</h3>
+                                </div>
+                                <span class="text-xs text-slate-500 dark:text-slate-400"><i class="fa-solid fa-sitemap mr-1"></i>Plan Mode</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                <div class="bg-slate-50 dark:bg-slate-900/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700/80">
+                                    <span class="font-medium text-slate-800 dark:text-slate-200 block mb-1">5.1 Global Components</span>
+                                    <span class="text-slate-500 dark:text-slate-400">Headers, footers, mobile drawers, CTA banners</span>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700/80">
+                                    <span class="font-medium text-slate-800 dark:text-slate-200 block mb-1">5.2 Content Model</span>
+                                    <span class="text-slate-500 dark:text-slate-400">CPTs, Taxonomies, & ACF/Meta field specs</span>
+                                </div>
+                                <div class="bg-slate-50 dark:bg-slate-900/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700/80">
+                                    <span class="font-medium text-slate-800 dark:text-slate-200 block mb-1">5.3 Section Execution Plan</span>
+                                    <span class="text-slate-500 dark:text-slate-400">Modular roadmap breakdown with priorities</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flow Connector Line -->
+                    <div class="flex items-center justify-center my-2">
+                        <div class="h-8 w-0.5 bg-gradient-to-b from-indigo-400 to-emerald-400 dark:from-indigo-500 dark:to-emerald-500"></div>
+                    </div>
+
+                    <!-- Phase 3: Section-by-Section Build Loop (STAGE 6 HIGHLIGHT) -->
+                    <div class="space-y-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Phase III</span>
+                            <span>Iterative Development Core (Stage 6)</span>
+                        </div>
+
+                        <div class="loop-card rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 font-bold">STAGE 06</span>
+                                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">6. Section-by-Section Build Loop</h3>
+                                    </div>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">Repeat 6.1 through 6.4 for every page section before moving forward.</p>
+                                </div>
+                                <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-300 dark:border-emerald-700 flex items-center">
+                                    <i class="fa-solid fa-arrows-spin animate-spin text-xs mr-2"></i> Recursive Loop
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                                
+                                <!-- Step 6.1 -->
+                                <div class="bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs relative">
+                                    <span class="absolute -top-2.5 left-3 text-[10px] font-mono font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">6.1</span>
+                                    <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">Develop Section</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Write PHP/Markup, CSS/Tailwind, JS & bind ACF fields.</p>
+                                </div>
+
+                                <!-- Step 6.2 -->
+                                <div class="bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs relative">
+                                    <span class="absolute -top-2.5 left-3 text-[10px] font-mono font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">6.2</span>
+                                    <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">Figma Visual Diff</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Compare local render vs Figma (spacing, typography, states).</p>
+                                </div>
+
+                                <!-- Step 6.3 -->
+                                <div class="bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs relative">
+                                    <span class="absolute -top-2.5 left-3 text-[10px] font-mono font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">6.3</span>
+                                    <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">Front & Back Review</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sanitization check, responsive check, Gutenberg block preview.</p>
+                                </div>
+
+                                <!-- Step 6.4 -->
+                                <div class="bg-white/90 dark:bg-slate-900/90 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs relative">
+                                    <span class="absolute -top-2.5 left-3 text-[10px] font-mono font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full">6.4</span>
+                                    <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">Commit Section</h4>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Git commit with descriptive section scope & tags.</p>
+                                </div>
+
+                            </div>
+
+                            <div class="mt-4 text-center">
+                                <span class="text-xs text-emerald-800 dark:text-emerald-300 font-medium italic"><i class="fa-solid fa-arrow-left-long mr-1"></i> Section verified & committed? Proceed to next section or Stage 7 <i class="fa-solid fa-arrow-right-long ml-1"></i></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flow Connector Line -->
+                    <div class="flex items-center justify-center my-2">
+                        <div class="h-8 w-0.5 bg-gradient-to-b from-emerald-400 to-amber-400 dark:from-emerald-500 dark:to-amber-500"></div>
+                    </div>
+
+                    <!-- Phase 4: QA, Launch & Deployment -->
+                    <div class="space-y-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Phase IV</span>
+                            <span>Quality Assurance, Staging & Production Launch (Stages 7-10)</span>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-4">
+
+                            <!-- Stage 7 -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(7)" data-stage="7">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-semibold">STAGE 07</span>
+                                    <span class="text-xs text-amber-600 dark:text-amber-400"><i class="fa-solid fa-vial-circle-check"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">7. QA & Testing</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Responsive viewports, WCAG accessibility, Lighthouse score, cross-browser check.</p>
+                            </div>
+
+                            <!-- Stage 8 -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(8)" data-stage="8">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 font-semibold">STAGE 08</span>
+                                    <span class="text-xs text-rose-600 dark:text-rose-400"><i class="fa-solid fa-magnifying-glass font-bold"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">8. Content & SEO</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Replace lorem ipsum, media webp conversion, meta titles, sitemaps & Schema.org.</p>
+                            </div>
+
+                            <!-- Stage 9 -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(9)" data-stage="9">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-semibold">STAGE 09</span>
+                                    <span class="text-xs text-purple-600 dark:text-purple-400"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">9. Staging & Sign-off</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">Deploy to staging, search & replace URLs, client visual diff review & formal sign-off.</p>
+                            </div>
+
+                            <!-- Stage 10 -->
+                            <div class="flow-card bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-md cursor-pointer relative group" onclick="openStageModal(10)" data-stage="10">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-semibold">STAGE 10</span>
+                                    <span class="text-xs text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-rocket"></i></span>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition">10. Production Launch</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">DNS cutover, SSL re-gen, caching/CDN enable, post-launch conversion audit.</p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: STAGES GRID / KANBAN CHECKLIST -->
+        <section id="view-kanban" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Interactive Execution Stages & Task Checklist</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Click checkboxes to mark progress as you build your WordPress theme with AI.</p>
+                </div>
+            </div>
+
+            <div id="stages-grid-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- VIEW 3: AI PROMPTS LIBRARY -->
+        <section id="view-prompts" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Claude Code & WP MCP Prompt Library</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Copy pre-formatted, production-tested prompts for each development stage.</p>
+                </div>
+            </div>
+
+            <div id="prompts-list-container" class="space-y-4">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- VIEW 4: SOP DOCUMENTATION VIEW -->
+        <section id="view-sop" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Standard Operating Procedure Document</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Complete text guide for AI-Assisted Figma to WordPress Development workflow.</p>
+                </div>
+                <button onclick="copyToClipboard(rawSopText)" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900 transition flex items-center">
+                    <i class="fa-regular fa-copy mr-1.5"></i> Copy Raw SOP Text
+                </button>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm space-y-8 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                
+                <!-- Title Header -->
+                <div class="border-b border-slate-200 dark:border-slate-800 pb-6 space-y-2">
+                    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                        <span>Official Standard Operating Procedure</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">AI-Assisted Figma to WordPress Development</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">This document outlines the step-by-step workflow for translating Figma designs into production-ready WordPress sites using AI tooling, Model Context Protocol (MCP) integrations, and developer guardrails.</p>
+                </div>
+
+                <!-- Stage 1 -->
+                <div class="space-y-3">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 inline-flex items-center justify-center text-xs mr-2 font-mono">1</span>
+                        Stage 1: Local Environment Setup
+                    </h2>
+                    <div class="pl-8 space-y-3">
+                        <div>
+                            <h3 class="font-semibold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-1">1.1 Local WordPress Setup</h3>
+                            <ul class="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300 text-xs">
+                                <li>Spin up local WordPress site (e.g., LocalWP, Lando, or DDEV).</li>
+                                <li>Configure environment details: PHP Version <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400">8.2+</code>, NGINX / Apache, WP Version (Latest Stable).</li>
+                                <li>Install base theme framework (Custom Starter / Block Theme) and essential plugin stack.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-1">1.2 Version Control Initialization</h3>
+                            <ul class="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300 text-xs">
+                                <li>Initialize Git repository in the custom theme or project root: <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400">git init</code></li>
+                                <li>Create <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">.gitignore</code> (exclude wp-config.php, uploads/, node_modules, vendor files).</li>
+                                <li>Set up default branching structure: <code class="font-mono text-xs">main</code> (Production), <code class="font-mono text-xs">staging</code> (Testing), <code class="font-mono text-xs">feature/[section-name]</code> (Working branches).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 2 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center justify-center text-xs mr-2 font-mono">2</span>
+                        Stage 2: AI Tooling & MCP Integration
+                    </h2>
+                    <div class="pl-8 space-y-3 text-xs">
+                        <p><strong class="text-slate-800 dark:text-slate-200">2.1 IDE Setup:</strong> Open local project directory in Claude Code / terminal IDE and verify permissions.</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">2.2 WordPress MCP Connection:</strong> Connect WordPress MCP server (Novamira WP MCP) via Application Passwords or API keys in <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">.env</code>. Validate CRUD access to posts, CPTs, fields, and options tables.</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">2.3 WordPress Agent Skills:</strong> Install and verify agent skills for Template hierarchy lookup, Block / ACF field definitions, and Code linting & security validation.</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">2.4 Browser & Figma Connectors:</strong> Connect Claude Chrome extension for active DOM inspecting and visual checking, and Claude Figma MCP integration for direct component inspection.</p>
+                    </div>
+                </div>
+
+                <!-- Stage 3 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 inline-flex items-center justify-center text-xs mr-2 font-mono">3</span>
+                        Stage 3: AI Guardrails & Context Rules
+                    </h2>
+                    <div class="pl-8 space-y-3">
+                        <p class="text-xs">Create a <code class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">CLAUDE.md</code> file in the project root to enforce coding standards, directory conventions, and security guidelines:</p>
+                        
+                        <pre class="bg-slate-900 dark:bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-100 font-mono text-xs overflow-x-auto whitespace-pre"># Project Guardrails & Rules
+
+## WordPress & PHP Standards
+- Follow WordPress Coding Standards (WPCS).
+- Always sanitize inputs (`sanitize_text_field`, etc.) and escape outputs (`esc_html`, `esc_attr`, `esc_url`).
+- Use strict typing where applicable (`declare(strict_types=1);`).
+- Do not edit core files or third-party plugin source code directly.
+
+## Architecture Guidelines
+- Keep logic separate from presentation (utilize render templates or controllers).
+- Use `theme.json` or standard CSS variables for styling consistency.
+- Avoid inline styles; utilize utility classes or styled CSS components.
+
+## AI Assistant Behavior
+- Execute edits incrementally, section by section.
+- Run syntax and lint checks prior to marking tasks as complete.
+- Prompt for human confirmation before running database-altering commands or destructive file operations.</pre>
+                    </div>
+                </div>
+
+                <!-- Stage 4 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 inline-flex items-center justify-center text-xs mr-2 font-mono">4</span>
+                        Stage 4: Figma Design Analysis & Tokenization
+                    </h2>
+                    <div class="pl-8 space-y-3 text-xs">
+                        <p><strong class="text-slate-800 dark:text-slate-200">4.1 Permissions & Seat Audit:</strong> Determine whether using Free / Collab Seat (manual visual comparison, Dev Mode screenshots) or Dev / Full Seat (Figma MCP context, variable trees, auto-layout tokens).</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">4.2 Design System & Token Extraction:</strong> Extract Color Palette, Typography Scale (<code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">clamp()</code> font sizes), Spacing Grid system (4px/8px scale), and Box Shadows into <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">theme.json</code> or CSS custom properties.</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">4.3 Breakpoint Definition:</strong> Mobile (375px–639px), Tablet (640px–1023px), Desktop (1024px–1439px), Wide Desktop (1440px+).</p>
+                    </div>
+                </div>
+
+                <!-- Stage 5 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 inline-flex items-center justify-center text-xs mr-2 font-mono">5</span>
+                        Stage 5: Architecture & Development Plan
+                    </h2>
+                    <div class="pl-8 space-y-2 text-xs">
+                        <p><strong class="text-slate-800 dark:text-slate-200">5.1 Global Components:</strong> Map out Headers (sticky/transparent), Mobile Navigation Drawers, Footers, and CTA Banners.</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">5.2 Content Model:</strong> Define CPTs, Taxonomies, and ACF / Meta field structures (Field keys, Flexible Content vs Repeater).</p>
+                        <p><strong class="text-slate-800 dark:text-slate-200">5.3 Section Execution Plan:</strong> Enter Claude Plan Mode to draft a modular section roadmap with priorities and dependencies.</p>
+                    </div>
+                </div>
+
+                <!-- Stage 6 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center">
+                        <span class="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center justify-center text-xs mr-2 font-mono">6</span>
+                        Stage 6: Section-by-Section Build Loop
+                    </h2>
+                    <div class="pl-8 space-y-3">
+                        <p class="text-xs italic text-slate-500 dark:text-slate-400">Iterate through steps 6.1 through 6.4 for every page section in sequence:</p>
+                        
+                        <pre class="bg-slate-900 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-emerald-400 font-mono text-xs overflow-x-auto whitespace-pre">       +------------------------------------+
+       |  6.1 Develop Section               |
+       +------------------------------------+
+                         |
+                         v
+       +------------------------------------+
+       |  6.2 Figma Visual Comparison       |
+       +------------------------------------+
+                         |
+                         v
+       +------------------------------------+
+       |  6.3 Code & Security Review        |
+       +------------------------------------+
+                         |
+                         v
+       +------------------------------------+
+       |  6.4 Commit & Push                 |
+       +------------------------------------+</pre>
+
+                        <ul class="space-y-1 text-xs list-disc pl-5 text-slate-600 dark:text-slate-300">
+                            <li><strong class="text-slate-800 dark:text-slate-200">6.1 Develop Section:</strong> Write markup (PHP/HTML), styles (CSS/Tailwind), JS, and bind ACF variables.</li>
+                            <li><strong class="text-slate-800 dark:text-slate-200">6.2 Visual Diff vs Figma:</strong> Verify typography, spacing, padding, and hover states across responsive viewports.</li>
+                            <li><strong class="text-slate-800 dark:text-slate-200">6.3 Frontend & Backend Review:</strong> Check HTML semantics, output escaping, and block editor preview render.</li>
+                            <li><strong class="text-slate-800 dark:text-slate-200">6.4 Commit Work:</strong> Git commit with descriptive section scope: <code class="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-xs font-mono">git commit -m "feat(hero-section): implement hero banner"</code></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Stages 7-10 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                    
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center">
+                            <span class="w-5 h-5 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 inline-flex items-center justify-center text-[10px] mr-2 font-mono">7</span>
+                            Stage 7: Quality Assurance & Testing
+                        </h3>
+                        <ul class="list-disc pl-5 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                            <li>Cross-Device & Responsive testing (320px to 2560px).</li>
+                            <li>WCAG AA accessibility check (contrast, keyboard nav, screen reader labels).</li>
+                            <li>Performance & Core Web Vitals (LCP &lt; 2.5s, CLS &lt; 0.1).</li>
+                            <li>Cross-browser testing (Chrome, Safari, Firefox, Edge).</li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center">
+                            <span class="w-5 h-5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 inline-flex items-center justify-center text-[10px] mr-2 font-mono">8</span>
+                            Stage 8: Content & SEO Preparation
+                        </h3>
+                        <ul class="list-disc pl-5 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                            <li>Replace lorem ipsum with production client copy & WebP media.</li>
+                            <li>Configure meta titles, descriptions, and OpenGraph tags.</li>
+                            <li>Set up XML sitemaps, canonical URLs, and Schema.org JSON-LD.</li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center">
+                            <span class="w-5 h-5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 inline-flex items-center justify-center text-[10px] mr-2 font-mono">9</span>
+                            Stage 9: Deployment & Client Handoff
+                        </h3>
+                        <ul class="list-disc pl-5 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                            <li>Deploy local build to public Staging environment.</li>
+                            <li>Migrate database and perform URL search-and-replace.</li>
+                            <li>Execute final client visual diff review & receive sign-off.</li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center">
+                            <span class="w-5 h-5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center justify-center text-[10px] mr-2 font-mono">10</span>
+                            Stage 10: Production Launch
+                        </h3>
+                        <ul class="list-disc pl-5 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                            <li>Backup existing target server database & files.</li>
+                            <li>Execute DNS cutover and verify Let's Encrypt / SSL.</li>
+                            <li>Enable search engine indexing & server page caching.</li>
+                            <li>Post-launch audit: GSC sitemap, forms, analytics tracking.</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Stage Detail Drawer / Modal -->
+    <div id="stage-modal" class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transition-colors">
+            
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80">
+                <div class="flex items-center space-x-3">
+                    <span id="modal-stage-badge" class="px-2.5 py-1 text-xs font-mono font-bold rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">STAGE 01</span>
+                    <h3 id="modal-stage-title" class="text-base font-bold text-slate-900 dark:text-white">Stage Title</h3>
+                </div>
+                <button onclick="closeStageModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-6 overflow-y-auto space-y-5 text-slate-700 dark:text-slate-300 text-xs">
+                <div>
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] mb-1">Stage Objective</h4>
+                    <p id="modal-stage-desc" class="text-slate-600 dark:text-slate-400">Description goes here...</p>
+                </div>
+
+                <!-- Subtask Checklist -->
+                <div>
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] mb-2">Checklist & Action Items</h4>
+                    <div id="modal-stage-tasks" class="space-y-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+
+                <!-- Sample AI Prompt Template -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <h4 class="font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">Recommended Claude / MCP Prompt</h4>
+                        <button id="modal-copy-prompt-btn" onclick="copyModalPrompt()" class="text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center bg-indigo-50 dark:bg-indigo-950 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800">
+                            <i class="fa-regular fa-copy mr-1"></i> Copy Prompt
+                        </button>
+                    </div>
+                    <pre id="modal-stage-prompt" class="bg-slate-900 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-800 dark:border-slate-800 text-slate-100 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] shadow-inner"></pre>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 flex justify-end">
+                <button onclick="closeStageModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 rounded-lg font-medium transition text-xs">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Raw SOP Markdown Text for Clipboard Copying
+        const rawSopText = `# Standard Operating Procedure: AI-Assisted Figma to WordPress Development
+
+This document outlines the step-by-step workflow for translating Figma designs into production-ready WordPress sites using AI tooling, Model Context Protocol (MCP) integrations, and developer guardrails.
+
+## Stage 1: Local Environment Setup
+### 1.1 Local WordPress Setup
+- Spin up local WordPress site (e.g., LocalWP, Lando, or DDEV).
+- Configure environment details: PHP Version 8.2+, NGINX / Apache, WP Version (Latest Stable).
+- Install base theme framework and essential plugin stack.
+
+### 1.2 Version Control Initialization
+- Initialize Git repository: git init
+- Create .gitignore (exclude wp-config.php, uploads/, node_modules, vendor files).
+- Set up default branching structure: main, staging, feature/[section-name].
+
+## Stage 2: AI Tooling & MCP Integration
+- Connect Claude Code & WordPress MCP Server (Novamira WP MCP).
+- Validate CRUD access to CPTs, fields, and options tables.
+- Install WordPress agent skills and Chrome/Figma connectors.
+
+## Stage 3: AI Guardrails & Context Rules
+- Create CLAUDE.md in project root enforcing WPCS, security sanitization, strict typing, and non-destructive database policies.
+
+## Stage 4: Figma Design Analysis & Tokenization
+- Audit Figma Seat Type (Free vs Dev Seat).
+- Extract Design Tokens: Color Palette, Typography Scale (clamp()), Spacing Grid, and Box Shadows.
+- Define Breakpoints: Mobile (375px), Tablet (640px), Desktop (1024px), Wide Desktop (1440px+).
+
+## Stage 5: Architecture & Development Plan
+- Map Global Components (Header, Drawer, Footer).
+- Define Content Model (CPTs, Taxonomies, ACF/Meta fields).
+- Enter Claude Plan Mode to draft modular execution roadmap.
+
+## Stage 6: Section-by-Section Build Loop
+- Step 6.1: Develop Section (PHP/HTML, CSS/Tailwind, JS, ACF bindings).
+- Step 6.2: Visual Diff vs Figma.
+- Step 6.3: Frontend & Backend Review.
+- Step 6.4: Git Commit with scope tag.
+
+## Stage 7: Quality Assurance & Testing
+- Cross-device testing (320px–2560px), WCAG AA accessibility, Lighthouse audit (LCP < 2.5s), Cross-browser checks.
+
+## Stage 8: Content & SEO Preparation
+- Real content ingestion, WebP conversion, Meta tags, Dynamic sitemaps, Schema.org JSON-LD.
+
+## Stage 9: Deployment & Client Handoff
+- Deploy to Staging, database search & replace, client visual review & sign-off.
+
+## Stage 10: Production Launch
+- Pre-launch backup, DNS cutover, SSL issuance, Object caching, Post-launch GSC sitemap & form testing.`;
+
+        // Workflow Stages Master Data Structure
+        const WORKFLOW_STAGES = [
+            {
+                id: 1,
+                title: "Local Environment Setup",
+                icon: "fa-brands fa-wordpress",
+                tool: "wp",
+                category: "Setup",
+                desc: "Provision local WordPress server (PHP 8.2+), load base starter theme framework, and establish clean Git repo branching.",
+                tasks: [
+                    { id: "1_1", text: "Spin up local WordPress site (PHP 8.2+, NGINX/Apache)" },
+                    { id: "1_2", text: "Install base theme framework or starter block theme" },
+                    { id: "1_3", text: "Initialize Git repository in custom theme directory" },
+                    { id: "1_4", text: "Create .gitignore (exclude config, uploads, node_modules)" },
+                    { id: "1_5", text: "Set up branching strategy (main, staging, feature/*)" }
+                ],
+                prompt: `Act as a Principal WordPress Core Architect.
+Generate a minimal, highly performant custom hybrid/block starter theme structure adhering strictly to WordPress Coding Standards (WPCS).
+
+Include:
+1. functions.php: Properly hooked asset enqueuing using wp_enqueue_style and wp_enqueue_script with versioning based on filemtime(), add_theme_support() for HTML5, title-tag, post-thumbnails, align-wide, and responsive embeds.
+2. theme.json: Basic skeleton with layout metrics, color palette bindings, and typography settings.
+3. Security & Cleanliness: index.php, style.css (header metadata), header.php, footer.php, template-parts/, inc/ separation of logic.
+4. Production .gitignore: Exclude OS metadata, node_modules/, vendor/, debug logs, local config backups, and uploaded assets while preserving lockfiles.
+5. Code Quality: Ensure all PHP files include declare(strict_types=1);, strict PHPDoc comment blocks, and dynamic security escaping placeholders.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 2,
+                title: "Tooling & MCP Setup",
+                icon: "fa-solid fa-plug",
+                tool: "mcp",
+                category: "Integration",
+                desc: "Open project in Claude Code, configure WordPress MCP Server (Novamira), install Agent Skills, and enable browser connectors.",
+                tasks: [
+                    { id: "2_1", text: "Open local project root in Claude Code terminal/IDE" },
+                    { id: "2_2", text: "Connect WordPress MCP server (Novamira WP MCP)" },
+                    { id: "2_3", text: "Validate CRUD access to CPTs, fields, and options tables" },
+                    { id: "2_4", text: "Install WP agent skills (Template hierarchy, ACF definition, Linting)" },
+                    { id: "2_5", text: "Connect Chrome & Figma extensions for DOM/Canvas inspection" }
+                ],
+                prompt: `Act as an AI Systems & Tooling Integration Engineer for WordPress.
+Validate and initialize our local environment connection via Novamira WordPress MCP and Claude Code CLI.
+
+Execute the following diagnostic and initialization checks:
+1. MCP Connection Diagnostic: Verify full CRUD connectivity to the local WordPress database via REST API / Application Passwords.
+2. Capability Audit: Enumerate active CPTs, Taxonomies, ACF/Meta Field Groups, and Theme Template Hierarchy mappings.
+3. Health Verification: Check PHP memory limits (min 256M), max execution time, active WP_DEBUG status, and REST endpoint accessibility.
+4. Context Binding: Confirm active Chrome DOM inspection capabilities and Figma node inspection access.
+5. Provide a structured summary report detailing active endpoints, available agent skills, database write privileges, and potential integration bottlenecks.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 3,
+                title: "AI Guardrails (CLAUDE.md)",
+                icon: "fa-solid fa-shield-halved",
+                tool: "mcp",
+                category: "Guardrails",
+                desc: "Establish CLAUDE.md in project root enforcing WPCS, security sanitization, and non-destructive command execution rules.",
+                tasks: [
+                    { id: "3_1", text: "Create CLAUDE.md file in root project directory" },
+                    { id: "3_2", text: "Define WPCS, PHP strict types, & security sanitization requirements" },
+                    { id: "3_3", text: "Establish styling guidelines (theme.json / CSS variables)" },
+                    { id: "3_4", text: "Set AI prompt confirmation policy for DB & destructive file ops" }
+                ],
+                prompt: `Act as a Lead WordPress Security Auditor and Systems Architect.
+Draft a comprehensive, strict CLAUDE.md repository rules file to govern all future AI-assisted code generation in this WordPress theme codebase.
+
+The rules must explicitly enforce:
+1. Security & Sanitization (NON-NEGOTIABLE):
+   - Mandatory output escaping using context-specific functions: esc_html(), esc_attr(), esc_url(), wp_kses_post().
+   - Input sanitization for all request params: sanitize_text_field(), absint(), sanitize_email().
+   - Nonces and user capability checks (current_user_can()) required on all AJAX / REST / form handling.
+2. WordPress Coding Standards (WPCS):
+   - Strict adherence to WP Naming Conventions (snake_case functions/variables, Kebab-case filenames).
+   - declare(strict_types=1); on all custom PHP template classes and controller files.
+3. Architectural Safety:
+   - Zero modifications to WP core or third-party plugin cores.
+   - Non-destructive DB policy: Require explicit user confirmation before executing any DROP, TRUNCATE, or raw SQL write queries.
+4. Modular Code Structure: Separation of template logic (template-parts/) from business logic (inc/).
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 4,
+                title: "Figma Design Analysis & Tokenization",
+                icon: "fa-brands fa-figma",
+                tool: "figma",
+                category: "Preparation",
+                desc: "Audit user seat type (Free vs Dev Seat) to set inspection workflow, extract dynamic design tokens, and establish container breakpoints.",
+                tasks: [
+                    { id: "4_1", text: "Audit Figma Seat Type (Free / Collab vs Dev / Full seat)" },
+                    { id: "4_2", text: "Extract Color Palette (Primary, Secondary, Neutral, Hover/Focus)" },
+                    { id: "4_3", text: "Extract Typography Scale (Font-family, Weight scale, clamp() sizes)" },
+                    { id: "4_4", text: "Extract Spacing Grid & Elevation Shadow tokens" },
+                    { id: "4_5", text: "Confirm Responsive Breakpoints (375px, 640px, 1024px, 1440px+)" }
+                ],
+                prompt: `Act as a Senior WordPress Frontend Engineer and Design System Architect.
+Analyze the attached Figma frame/design tokens and extract a comprehensive, production-ready WordPress theme.json (v3 format) or CSS Custom Properties file.
+
+Requirements:
+1. Palette & Alpha Variants: Extract primary, secondary, neutral, semantic (success, warning, error, info), and surface colors with dark/light mode compatibility.
+2. Fluid Typography Scale: Use clamp() for responsive font sizes (mobile viewport 375px to desktop 1440px). Define font-family stacks, font-weights, line-heights, and letter-spacings.
+3. Spacing Grid System: Define explicit spacing scale steps (e.g., 4px, 8px, 12px, 16px, 24px, 32px, 48px, 64px, 96px, 128px) mapped to theme.json spacing sizes.
+4. Layout & Breakpoints: Define standard container max-widths (content width: 800px, wide width: 1200px, full-bleed) and border-radius/shadow design tokens.
+5. Output Format: Provide valid JSON syntax for theme.json v3, complete with settings, styles, and custom properties ready to drop into a WordPress block/hybrid theme.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 5,
+                title: "Architecture & Development Plan",
+                icon: "fa-solid fa-sitemap",
+                tool: "mcp",
+                category: "Planning",
+                desc: "Map global components (Header/Footer), define custom fields and CPT models, and enter Plan Mode for modular section execution.",
+                tasks: [
+                    { id: "5_1", text: "Map global reusable components (Header, Mobile Drawer, Footer)" },
+                    { id: "5_2", text: "Define CPTs, Taxonomies, and ACF dynamic field mapping" },
+                    { id: "5_3", text: "Enter Claude Plan Mode to draft modular section roadmap" }
+                ],
+                prompt: `Act as a Chief Technical Architect for Enterprise WordPress Applications.
+Perform an architectural breakdown and field mapping plan for the attached design/page layout. Enter Claude Plan Mode and generate a structured development roadmap.
+
+Provide the following specs:
+1. Content Modeling:
+   - Identify required Custom Post Types (CPTs), Custom Taxonomies, and post relationships.
+   - Define exact ACF (Advanced Custom Fields) or Native Meta field groups, field keys, types (Text, Image, Repeater, Flexible Content, Relationship), and fallback defaults.
+2. Global Component Mapping:
+   - Break down global UI units: Header (sticky/transparent states), Mobile Off-canvas Drawer, Footer, and Global CTA Banners.
+   - Plan template hierarchy hooks (header.php, footer.php, template-parts/header/navigation.php).
+3. Section Roadmapping:
+   - Divide the page into ordered, independent, modular sections (e.g., Section 1: Hero, Section 2: Features Grid, Section 3: Testimonials Slider, Section 4: Pricing Table, Section 5: Dynamic FAQ Accordion).
+   - Detail dependencies, required JS/CSS assets, and ACF field dependencies for each section.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 6,
+                title: "Section-by-Section Build Loop",
+                icon: "fa-solid fa-arrows-spin",
+                tool: "wp",
+                category: "Execution",
+                desc: "Iterative core loop: Develop code -> Figma visual diff check -> Front/Backend review -> Git commit. Repeat for each section.",
+                tasks: [
+                    { id: "6_1", text: "6.1 Develop section (PHP/HTML, CSS/Tailwind, JS, ACF bindings)" },
+                    { id: "6_2", text: "6.2 Visual Diff check vs Figma reference across viewports" },
+                    { id: "6_3", text: "6.3 Review frontend semantics, sanitization, & block editor preview" },
+                    { id: "6_4", text: "6.4 Commit section with descriptive git commit message" }
+                ],
+                prompt: `Act as a Senior Frontend Developer & WordPress Gutenberg Specialist.
+Build Section [X]: [Insert Section Name, e.g., Hero Banner / Features Grid] adhering strictly to our WPCS and CLAUDE.md guidelines.
+
+Deliverables & Rules:
+1. PHP Template (template-parts/sections/[section-slug].php):
+   - Bind ACF fields cleanly using get_field() or $args passed via get_template_part().
+   - Implement fallbacks for empty fields to prevent broken markup.
+   - Apply strict output escaping (esc_html(), esc_attr(), esc_url(), wp_kses_post()).
+2. CSS / Tailwind Styling:
+   - Match Figma spec down to exact pixel spacing, clamp typography, flex/grid alignment, hover/active/focus states, and responsive viewports (375px, 768px, 1024px, 1440px).
+3. Accessibility & Performance:
+   - Proper semantic tags (<section>, <header>, <h2>), aria attributes (aria-expanded, aria-controls), and native dynamic image optimization (loading="lazy", decoding="async").
+4. Self-Review Checklist:
+   - Run a visual diff vs Figma reference.
+   - Verify zero console errors and clean backend ACF admin editing experience.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 7,
+                title: "Quality Assurance & Testing",
+                icon: "fa-solid fa-vial-circle-check",
+                tool: "git",
+                category: "Testing",
+                desc: "Execute full cross-device testing, WCAG AA accessibility audit, Lighthouse performance optimization, and browser checks.",
+                tasks: [
+                    { id: "7_1", text: "Cross-device responsive test (320px to 2560px viewports)" },
+                    { id: "7_2", text: "WCAG AA accessibility check (Heading hierarchy, contrast, keyboard nav)" },
+                    { id: "7_3", text: "Lighthouse audit (Target LCP < 2.5s, CLS < 0.1)" },
+                    { id: "7_4", text: "Verify compatibility on Chrome, Safari, Firefox, and Edge" }
+                ],
+                prompt: `Act as a Lead QA Automation Engineer and Web Performance / Accessibility Auditor.
+Execute a thorough multi-dimensional Quality Assurance audit on the custom WordPress theme code and rendered DOM.
+
+Perform checks and generate report on:
+1. Responsive Integrity: Test breakpoints at 320px, 375px, 768px, 1024px, 1440px, and 2560px. Ensure no horizontal overflow, layout shifts, or clipping.
+2. WCAG 2.1 AA Accessibility: Verify color contrast ratios (min 4.5:1), keyboard tabbability, focus rings, heading rank ordering (single H1 per page), image alt tags, and screen reader labels.
+3. Security Audit: Scan PHP files for unescaped variables, direct DB queries without $wpdb->prepare(), missing nonces, and exposed sensitive endpoints.
+4. Performance & CWV: Evaluate LCP (<2.5s), CLS (<0.1), and INP (<200ms). Identify unoptimized assets, render-blocking scripts, and duplicate CSS.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 8,
+                title: "Content & SEO Preparation",
+                icon: "fa-solid fa-magnifying-glass",
+                tool: "wp",
+                category: "Content",
+                desc: "Replace lorem ipsum with client copy, optimize media assets (WebP), set meta tags, dynamic sitemaps, and Schema.org markup.",
+                tasks: [
+                    { id: "8_1", text: "Ingest production copy and high-res optimized WebP assets" },
+                    { id: "8_2", text: "Configure dynamic page titles, meta descriptions, and OpenGraph tags" },
+                    { id: "8_3", text: "Set up XML sitemaps and dynamic Schema.org structured data" }
+                ],
+                prompt: `Act as a Technical SEO Specialist and WordPress Content Engineer.
+Prepare and optimize the WordPress template and database for production content ingestion and Search Engine Optimization.
+
+Tasks:
+1. Schema.org JSON-LD Generation: Draft dynamic PHP script embedding structured schema data for Organization, WebSite, BreadcrumbList, and specific page types (Article / Product / FAQPage).
+2. On-Page SEO Infrastructure:
+   - Ensure dynamic title tag support, OpenGraph (og:title, og:image, og:description) meta generation, and Twitter Card metadata.
+   - Verify dynamic XML sitemap generation and canonical URL handling.
+3. Media Optimization: Implement automatic WebP conversion hooks, responsive srcset generation, and force descriptive alt tag validation on upload.
+4. Content Sanitization: Provide a migration script/command to strip inline formatting, bad paste artifacts, and broken internal links from imported client copy.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 9,
+                title: "Deployment & Client Handoff",
+                icon: "fa-solid fa-cloud-arrow-up",
+                tool: "git",
+                category: "Deployment",
+                desc: "Push to public staging environment, perform search-and-replace on site URLs, and review final visual diff for client sign-off.",
+                tasks: [
+                    { id: "9_1", text: "Deploy local build to public Staging server" },
+                    { id: "9_2", text: "Run search-and-replace database migration for staging domain" },
+                    { id: "9_3", text: "Perform client visual diff review & receive formal sign-off" }
+                ],
+                prompt: `Act as a Lead DevOps & Systems Deployment Engineer.
+Prepare and execute a non-destructive deployment migration from the local WordPress development environment to the public Staging server.
+
+Provide step-by-step procedures and commands:
+1. Database & Asset Sync:
+   - Generate safe WP-CLI database export and search-and-replace command (wp search-replace 'http://localhost:10008' 'https://staging.example.com' --skip-columns=guid).
+2. Git Deployment Pipeline: Build script to push clean code to the staging branch, trigger build step (CSS/JS minification), and update server files via SSH/Rsync.
+3. Post-Migration Verification:
+   - Re-generate .htaccess / NGINX permalink rules.
+   - Verify SSL certificate, update REST API endpoints, flush object cache / Redis, and verify media library path references.
+4. Client Handoff Visual Diff: Generate visual audit checklist comparing Staging environment vs original Figma mockups.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            },
+            {
+                id: 10,
+                title: "Production Launch",
+                icon: "fa-solid fa-rocket",
+                tool: "git",
+                category: "Launch",
+                desc: "Execute pre-launch backup, DNS cutover, HTTPS SSL verification, object caching, and post-launch conversion testing.",
+                tasks: [
+                    { id: "10_1", text: "Run full database & file backup before production cutover" },
+                    { id: "10_2", text: "Enable search engine indexing & server-side page caching" },
+                    { id: "10_3", text: "Execute DNS cutover and verify HTTPS SSL certificates" },
+                    { id: "10_4", text: "Post-launch audit: Test form submissions, analytics, & GSC sitemap" }
+                ],
+                prompt: `Act as a Site Reliability Engineer (SRE) and WordPress Deployment Director.
+Execute the final Go-Live sequence for launching the WordPress site on the live Production server.
+
+Execute the following orchestrated release protocol:
+1. Pre-Flight Backup & Freeze: Trigger full database & filesystem backup on target server; place site in maintenance mode if upgrading.
+2. DNS & SSL Cutover: Direct A Records / CNAME to production IP; issue/renew Let's Encrypt or Cloudflare SSL certificate; enforce HTTPS redirect rules.
+3. Production DB Migration: Execute WP-CLI search-and-replace for domain switch; flush rewrite rules (wp rewrite flush); clear object cache and CDN cache (Cloudflare).
+4. Go-Live Post-Cutover Verification:
+   - Enable search engine indexing (wp option update blog_public 1).
+   - Run automated HTTP health check (verify 200 OK across key URLs, no mixed content warnings, zero SSL errors).
+   - Test critical conversion flows (form submissions, transactional emails, payment gateway sandboxes).
+   - Submit sitemap to Google Search Console.
+
+Note: This is a generic prompt; modify this based on your project requirements.`
+            }
+        ];
+
+        // Persistent State Handling
+        let userTaskProgress = JSON.parse(localStorage.getItem('wp_ai_workflow_progress')) || {};
+        let activeToolFilter = 'all';
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderKanbanGrid();
+            renderPromptsList();
+            updateProgressMetrics();
+        });
+
+        // Theme Toggle Functionality
+        function initTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            updateThemeUI(isDark);
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+                localStorage.setItem('theme', 'light');
+                updateThemeUI(false);
+            } else {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+                localStorage.setItem('theme', 'dark');
+                updateThemeUI(true);
+            }
+        }
+
+        function updateThemeUI(isDark) {
+            const icon = document.getElementById('theme-toggle-icon');
+            const text = document.getElementById('theme-toggle-text');
+            if (icon && text) {
+                if (isDark) {
+                    icon.className = 'fa-solid fa-sun text-amber-400';
+                    text.textContent = 'Light';
+                } else {
+                    icon.className = 'fa-solid fa-moon text-slate-600';
+                    text.textContent = 'Dark';
+                }
+            }
+        }
+
+        // View Switching Logic
+        function switchView(viewName) {
+            const views = ['flowchart', 'kanban', 'prompts', 'sop'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const btn = document.getElementById(`btn-view-${v}`);
+                if (v === viewName) {
+                    el.classList.remove('hidden');
+                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+                    btn.classList.remove('text-slate-600', 'dark:text-slate-300');
+                } else {
+                    el.classList.add('hidden');
+                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                    btn.classList.add('text-slate-600', 'dark:text-slate-300');
+                }
+            });
+        }
+
+        // Render Kanban Grid
+        function renderKanbanGrid() {
+            const container = document.getElementById('stages-grid-container');
+            container.innerHTML = '';
+
+            WORKFLOW_STAGES.forEach(stage => {
+                if (activeToolFilter !== 'all' && stage.tool !== activeToolFilter) return;
+
+                const stageCard = document.createElement('div');
+                stageCard.className = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3';
+                
+                const completedTasks = stage.tasks.filter(t => userTaskProgress[t.id]).length;
+                const percent = Math.round((completedTasks / stage.tasks.length) * 100);
+
+                let taskHtml = stage.tasks.map(task => {
+                    const isChecked = !!userTaskProgress[task.id];
+                    return `
+                        <label class="flex items-start space-x-2.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer group">
+                            <input type="checkbox" onchange="toggleTask('${task.id}')" ${isChecked ? 'checked' : ''} class="mt-0.5 rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500">
+                            <span class="${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : ''} group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition">${task.text}</span>
+                        </label>
+                    `;
+                }).join('');
+
+                stageCard.innerHTML = `
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400"><i class="${stage.icon}"></i></span>
+                            <div>
+                                <span class="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500">STAGE ${stage.id < 10 ? '0' + stage.id : stage.id}</span>
+                                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">${stage.title}</h3>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-semibold px-2 py-0.5 rounded ${percent === 100 ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">${percent}%</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">${stage.desc}</p>
+                    <div class="space-y-2 pt-2">
+                        ${taskHtml}
+                    </div>
+                `;
+
+                container.appendChild(stageCard);
+            });
+        }
+
+        // Render Prompts Library
+        function renderPromptsList() {
+            const container = document.getElementById('prompts-list-container');
+            container.innerHTML = '';
+
+            WORKFLOW_STAGES.forEach(stage => {
+                const promptCard = document.createElement('div');
+                promptCard.className = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl p-5 space-y-3';
+                
+                promptCard.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">Stage ${stage.id}</span>
+                            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">${stage.title}</h3>
+                        </div>
+                        <button onclick="copyPromptText('prompt-text-${stage.id}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 dark:hover:bg-indigo-900 px-2.5 py-1 rounded border border-indigo-200 dark:border-indigo-800">
+                            <i class="fa-regular fa-copy mr-1.5"></i> Copy Prompt
+                        </button>
+                    </div>
+                    <pre id="prompt-text-${stage.id}" class="bg-slate-900 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-800 dark:border-slate-800 text-slate-100 font-mono text-xs overflow-x-auto whitespace-pre-wrap shadow-inner">${stage.prompt}</pre>
+                `;
+
+                container.appendChild(promptCard);
+            });
+        }
+
+        // Toggle Individual Task
+        function toggleTask(taskId) {
+            userTaskProgress[taskId] = !userTaskProgress[taskId];
+            localStorage.setItem('wp_ai_workflow_progress', JSON.stringify(userTaskProgress));
+            updateProgressMetrics();
+            renderKanbanGrid();
+        }
+
+        // Filter Tool View
+        function filterByTool(tool) {
+            activeToolFilter = tool;
+            document.querySelectorAll('.tool-filter-btn').forEach(btn => {
+                if (btn.dataset.tool === tool) {
+                    btn.classList.add('border-indigo-500/40', 'bg-indigo-50', 'text-indigo-700', 'dark:bg-indigo-950/60', 'dark:text-indigo-300', 'dark:border-indigo-600/50', 'shadow-xs');
+                    btn.classList.remove('border-slate-200', 'bg-white', 'text-slate-600', 'dark:border-slate-700', 'dark:bg-slate-800', 'dark:text-slate-300');
+                } else {
+                    btn.classList.remove('border-indigo-500/40', 'bg-indigo-50', 'text-indigo-700', 'dark:bg-indigo-950/60', 'dark:text-indigo-300', 'dark:border-indigo-600/50', 'shadow-xs');
+                    btn.classList.add('border-slate-200', 'bg-white', 'text-slate-600', 'dark:border-slate-700', 'dark:bg-slate-800', 'dark:text-slate-300');
+                }
+            });
+            renderKanbanGrid();
+        }
+
+        // Update Global Progress Bar
+        function updateProgressMetrics() {
+            let totalTasks = 0;
+            let completedTasks = 0;
+
+            WORKFLOW_STAGES.forEach(stage => {
+                stage.tasks.forEach(task => {
+                    totalTasks++;
+                    if (userTaskProgress[task.id]) completedTasks++;
+                });
+            });
+
+            const percent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+            document.getElementById('tasks-completed-count').textContent = completedTasks;
+            document.getElementById('tasks-total-count').textContent = totalTasks;
+            document.getElementById('progress-percent').textContent = `${percent}%`;
+
+            // SVG DashOffset computation
+            const circle = document.getElementById('progress-circle');
+            const circumference = 163.3; // 2 * pi * r (r=26)
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+
+            // Status Badge Text
+            const badge = document.getElementById('progress-text-badge');
+            if (percent === 0) {
+                badge.textContent = "Not Started";
+                badge.className = "px-2 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
+            } else if (percent < 100) {
+                badge.textContent = "In Progress";
+                badge.className = "px-2 py-0.5 text-[10px] rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800";
+            } else {
+                badge.textContent = "Workflow Complete!";
+                badge.className = "px-2 py-0.5 text-[10px] rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
+            }
+        }
+
+        // Reset Progress
+        function resetProgress() {
+            if (confirm("Are you sure you want to reset all checklist task progress?")) {
+                userTaskProgress = {};
+                localStorage.removeItem('wp_ai_workflow_progress');
+                updateProgressMetrics();
+                renderKanbanGrid();
+            }
+        }
+
+        // Modal Controls
+        let currentModalStage = null;
+
+        function openStageModal(stageId) {
+            const stage = WORKFLOW_STAGES.find(s => s.id === stageId);
+            if (!stage) return;
+
+            currentModalStage = stage;
+            document.getElementById('modal-stage-badge').textContent = `STAGE ${stage.id < 10 ? '0' + stage.id : stage.id}`;
+            document.getElementById('modal-stage-title').textContent = stage.title;
+            document.getElementById('modal-stage-desc').textContent = stage.desc;
+            document.getElementById('modal-stage-prompt').textContent = stage.prompt;
+
+            // Modal tasks
+            const tasksContainer = document.getElementById('modal-stage-tasks');
+            tasksContainer.innerHTML = stage.tasks.map(task => {
+                const isChecked = !!userTaskProgress[task.id];
+                return `
+                    <label class="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTaskModal('${task.id}')" ${isChecked ? 'checked' : ''} class="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-indigo-600">
+                        <span class="${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${task.text}</span>
+                    </label>
+                `;
+            }).join('');
+
+            document.getElementById('stage-modal').classList.remove('hidden');
+        }
+
+        function toggleTaskModal(taskId) {
+            toggleTask(taskId);
+            if (currentModalStage) {
+                openStageModal(currentModalStage.id);
+            }
+        }
+
+        function closeStageModal() {
+            document.getElementById('stage-modal').classList.add('hidden');
+        }
+
+        // Copy Utility
+        function copyPromptText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            copyToClipboard(text);
+        }
+
+        function copyModalPrompt() {
+            const text = document.getElementById('modal-stage-prompt').textContent;
+            copyToClipboard(text);
+        }
+
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            // Toast feedback
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 right-5 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs shadow-lg font-medium z-50 flex items-center space-x-2';
+            toast.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Copied to clipboard!</span>';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
