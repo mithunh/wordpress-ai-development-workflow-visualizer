@@ -46,3 +46,27 @@ wp-config.php
 # Note: If you wish to whitelist themes,
 # uncomment the next line
 #/wp-content/themes
+
+
+
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS Finder metadata
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.DocumentRevisions-V100
+.TemporaryItems
+.VolumeIcon.icns
+
+# macOS network files
+.NetworkTrashFolder
+.com.apple.timemachine.donotpresent
+
+# Thumbnails
+.Thumbs.db
